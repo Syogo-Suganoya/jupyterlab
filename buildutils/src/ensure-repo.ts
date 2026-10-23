@@ -781,9 +781,18 @@ export async function ensureIntegrity(): Promise<boolean> {
       unused.push('jest-junit');
     }
 
+    const data = pkgData[name];
+    // Point npm and other tools at the package folder in the monorepo.
+    if (data.repository && typeof data.repository === 'object') {
+      data.repository.directory = path
+        .relative('.', pkgPaths[name])
+        .split(path.sep)
+        .join('/');
+    }
+
     const options: IEnsurePackageOptions = {
       pkgPath: pkgPaths[name],
-      data: pkgData[name],
+      data,
       depCache,
       missing: MISSING[name],
       unused,
