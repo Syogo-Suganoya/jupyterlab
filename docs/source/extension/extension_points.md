@@ -381,6 +381,76 @@ Note that an extension providing a replacement plugin like this must either {ref
 jupyter labextension disable @jupyterlab/filebrowser-extension:share-file
 ```
 
+## Editor Languages
+
+The text editor picks the syntax highlighting of a file from its name, using the
+languages registered in the {ts:interface}`codemirror.IEditorLanguageRegistry`.
+To highlight more files, register a language with
+{ts:interface}`codemirror.IEditorLanguage` `extensions` (or a `filename` regular
+expression) matching them. The language `name` and `mime` must not be registered
+already, or `addLanguage` throws.
+
+To highlight a new file extension with an existing language, register a new
+language that loads the support of the existing one. For instance, to highlight
+`.trd` files as Mathematica:
+
+```typescript
+import {
+  JupyterFrontEnd,
+  JupyterFrontEndPlugin
+} from '@jupyterlab/application';
+import { IEditorLanguageRegistry } from '@jupyterlab/codemirror';
+
+const plugin: JupyterFrontEndPlugin<void> = {
+  id: 'my-extension:trd-language',
+  description: 'Highlights .trd files as Mathematica.',
+  autoStart: true,
+  requires: [IEditorLanguageRegistry],
+  activate: (app: JupyterFrontEnd, languages: IEditorLanguageRegistry) => {
+    languages.addLanguage({
+      name: 'trd',
+      displayName: 'TRD',
+      mime: 'text/x-trd',
+      extensions: ['trd'],
+      load: async () => {
+        const mathematica = await languages.getLanguage('mathematica');
+        return mathematica!.support!;
+      }
+    });
+  }
+};
+```
+
+To add a custom language, return its CodeMirror 6 `LanguageSupport` from `load`.
+A parser written as a CodeMirror 5 style
+[stream parser](https://codemirror.net/docs/ref/#language.StreamParser) can be wrapped
+with `EditorLanguageRegistry.legacy`:
+
+```typescript
+import { EditorLanguageRegistry } from '@jupyterlab/codemirror';
+
+languages.addLanguage({
+  name: 'my-language',
+  mime: 'text/x-my-language',
+  extensions: ['mylang'],
+  load: async () =>
+    EditorLanguageRegistry.legacy({
+      token: stream => {
+        if (stream.match(/^#.*/)) {
+          return 'comment';
+        }
+        stream.next();
+        return null;
+      }
+    })
+});
+```
+
+Registering a file type with the document registry (see
+{ts:class}`docregistry.DocumentRegistry` `addFileType`) is optional: it sets the
+icon and the name of the files in the file browser, but it does not change their
+highlighting.
+
 ## Icons
 
 See {ref}`ui-components`
