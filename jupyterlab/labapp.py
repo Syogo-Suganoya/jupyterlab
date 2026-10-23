@@ -9,7 +9,7 @@ import dataclasses
 import json
 import os
 import sys
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from jupyter_core.application import JupyterApp, NoStart, base_aliases, base_flags
 from jupyter_server._version import version_info as jpserver_version_info
@@ -27,6 +27,7 @@ from jupyterlab_server.config import get_static_page_config
 from jupyterlab_server.translation_utils import DEFAULT_LOCALE, SYS_LOCALE, is_valid_locale
 from notebook_shim.shim import NotebookConfigShimMixin
 from traitlets import Bool, Instance, Type, Unicode, default
+from traitlets.config.application import TRAITLETS_APPLICATION_RAISE_CONFIG_FILE_ERROR
 
 from ._version import __version__
 from .commands import (
@@ -66,6 +67,8 @@ from .handlers.plugin_manager_handler import PluginHandler, plugins_handler_path
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    from jupyter_server.serverapp import ServerApp
 
 DEV_NOTE = """You're running JupyterLab from source.
 If you're working on the TypeScript sources of JupyterLab, try running
@@ -629,6 +632,14 @@ class LabApp(NotebookConfigShimMixin, LabServerApp):
         help="""A callable class that receives the current version at instantiation and calling it must return asynchronously a string indicating which version is available and how to install or None if no update is available. The string supports Markdown format.""",
     )
 
+    # Set when `jupyter lab` launches the server, as opposed to JupyterLab being
+    # loaded as an extension of another server application.
+    _launched_as_app = False
+
+    @default("raise_config_file_errors")
+    def _default_raise_config_file_errors(self) -> bool:
+        return self._launched_as_app or TRAITLETS_APPLICATION_RAISE_CONFIG_FILE_ERROR
+
     @default("app_dir")
     def _default_app_dir(self) -> str:
         app_dir = get_app_dir()
@@ -950,6 +961,35 @@ class LabApp(NotebookConfigShimMixin, LabServerApp):
         # Extend Server handlers with jupyterlab handlers.
         self.handlers.extend(handlers)
         super().initialize_handlers()
+
+    @classmethod
+    def initialize_server(
+        cls,
+        argv: Sequence[str] | None = None,
+        load_other_extensions: bool = True,
+        **kwargs: Any,
+    ) -> ServerApp:
+        """Make config file errors fatal when JupyterLab is the launched app."""
+        cls._launched_as_app = True
+        return super().initialize_server(
+            argv=argv, load_other_extensions=load_other_extensions, **kwargs
+        )
+
+    def load_config_file(self, suppress_errors: bool = True) -> None:  # type:ignore[override]
+        """Load the config files, and exit on errors if `raise_config_file_errors` is set.
+
+        Exiting is needed because the server only logs exceptions raised while linking extensions.
+        """
+        try:
+            super().load_config_file(suppress_errors=suppress_errors)
+        except Exception:
+            if not self.raise_config_file_errors:
+                raise
+            self.log.critical(
+                "Jupyter Lab cannot start, because a config file could not be loaded.",
+                exc_info=True,
+            )
+            sys.exit(1)
 
     def initialize(self, argv: Sequence[str] | None = None):
         """Subclass because the ExtensionApp.initialize() method does not take arguments"""
