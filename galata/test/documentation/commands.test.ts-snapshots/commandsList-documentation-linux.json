@@ -5245,6 +5245,10 @@
         "commandLinkerTrustBoundaryId": {
           "type": "string",
           "description": "The notebook trust boundary ID"
+        },
+        "save": {
+          "type": "boolean",
+          "description": "Whether to save the notebook after trusting it (default: true)"
         }
       }
     }

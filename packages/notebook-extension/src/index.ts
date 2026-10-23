@@ -3397,7 +3397,7 @@ function addCommands(
       if (current && !current.isDisposed) {
         const { context, content } = current;
         const trustResult = await NotebookActions.trust(content);
-        if (trustResult.trusted) {
+        if (trustResult.trusted && args.save !== false) {
           await context.save();
         }
         return trustResult;
@@ -3413,6 +3413,12 @@ function addCommands(
           [CommandLinker.TRUST_BOUNDARY_ID_ARG]: {
             type: 'string',
             description: trans.__('The notebook trust boundary ID')
+          },
+          save: {
+            type: 'boolean',
+            description: trans.__(
+              'Whether to save the notebook after trusting it (default: true)'
+            )
           }
         }
       }
