@@ -124,6 +124,16 @@
       "type": "boolean",
       "default": false
     },
+    "renderer": {
+      "title": "Renderer",
+      "description": "The renderer used to draw the terminal. WebGL is faster but can show input lag or rendering glitches on some systems; it falls back to DOM when WebGL2 is unavailable.",
+      "type": "string",
+      "default": "webgl",
+      "oneOf": [
+        { "const": "webgl", "title": "WebGL" },
+        { "const": "dom", "title": "DOM" }
+      ]
+    },
     "cursorBlink": {
       "title": "Blinking cursor",
       "description": "Whether to blink the cursor. Changes require reopening the terminal.",

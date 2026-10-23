@@ -125,6 +125,20 @@ describe('terminal/index', () => {
       });
     });
 
+    describe('#renderer', () => {
+      it('should be webgl by default', () => {
+        expect(widget.getOption('renderer')).toBe('webgl');
+      });
+
+      it('should switch to the DOM renderer', async () => {
+        await widget.ready;
+        widget.setOption('renderer', 'dom');
+        expect(widget.getOption('renderer')).toBe('dom');
+        await framePromise();
+        expect(widget.methods).toContain('onUpdateRequest');
+      });
+    });
+
     describe('#dispose()', () => {
       it('should dispose of the resources used by the widget', () => {
         expect(widget.isDisposed).toBe(false);

@@ -230,6 +230,11 @@ export class Terminal extends Widget implements ITerminal.ITerminal {
       case 'macOptionIsMeta':
         this._term.options.macOptionIsMeta = value as boolean | undefined;
         break;
+      case 'renderer':
+        if (this._termOpened) {
+          this._setRenderer();
+        }
+        break;
       default:
         // Do not transmit options not listed above to XTerm
         break;
@@ -411,7 +416,7 @@ export class Terminal extends Widget implements ITerminal.ITerminal {
       this._term.open(this.node);
       // Load the renderer addon after open so a failed activation leaves
       // the DOM renderer in place.
-      Private.addRenderer(this._term);
+      this._setRenderer();
       this._term.element?.classList.add(TERMINAL_BODY_CLASS);
       this._term.textarea?.setAttribute(
         'aria-describedby',
@@ -466,6 +471,19 @@ export class Terminal extends Widget implements ITerminal.ITerminal {
       this._initialConnection,
       this
     );
+  }
+
+  /**
+   * Switch the opened terminal to the renderer set in the options.
+   */
+  private _setRenderer(): void {
+    this._webglRenderer?.dispose();
+    this._webglRenderer = null;
+    if (this._options.renderer === 'webgl') {
+      this._webglRenderer = Private.addWebglRenderer(this._term, () =>
+        this._setRenderer()
+      );
+    }
   }
 
   /**
@@ -706,6 +724,7 @@ export class Terminal extends Widget implements ITerminal.ITerminal {
 
   private _contextMenuLink: string | null = null;
   private _fitAddon: FitAddon;
+  private _webglRenderer: WebglAddon | null = null;
   private _hoveredLink: string | null = null;
   private _searchAddon: SearchAddon;
   private _needsResize = true;
@@ -899,27 +918,30 @@ namespace Private {
   /**
    * Attach the WebGL renderer to an opened terminal.
    *
-   * The built-in DOM renderer is used when the WebGL addon is unavailable
-   * or fails to activate.
+   * Returns `null` when the WebGL addon is unavailable or fails to activate,
+   * in which case the built-in DOM renderer stays in use.
    */
-  export function addRenderer(term: Xterm): void {
+  export function addWebglRenderer(
+    term: Xterm,
+    onContextLoss: () => void
+  ): WebglAddon | null {
     if (!WebglAddon_) {
-      return;
+      return null;
     }
     try {
       const renderer = new WebglAddon_();
       term.loadAddon(renderer);
       renderer.onContextLoss(() => {
         console.debug('WebGL context lost - reinitialize Xtermjs renderer.');
-        renderer.dispose();
-        // If the Webgl context is lost, reinitialize the addon
-        addRenderer(term);
+        onContextLoss();
       });
+      return renderer;
     } catch (error) {
       console.warn(
         'Failed to activate the WebGL renderer, falling back to the DOM renderer.',
         error
       );
+      return null;
     }
   }
 

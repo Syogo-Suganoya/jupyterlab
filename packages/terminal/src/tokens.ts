@@ -147,6 +147,13 @@ export namespace ITerminal {
      * Treat option as meta key on macOS.
      */
     macOptionIsMeta?: boolean;
+
+    /**
+     * The renderer used to draw the terminal.
+     *
+     * `'webgl'` falls back to `'dom'` when WebGL2 is unavailable.
+     */
+    renderer?: Renderer;
   }
 
   /**
@@ -165,13 +172,19 @@ export namespace ITerminal {
     screenReaderMode: false, // False by default, can cause scrollbar mouse interaction issues.
     pasteWithCtrlV: true,
     autoFit: true,
-    macOptionIsMeta: false
+    macOptionIsMeta: false,
+    renderer: 'webgl'
   };
 
   /**
    * A type for the terminal theme.
    */
   export type Theme = 'light' | 'dark' | 'inherit';
+
+  /**
+   * A type for the terminal renderer.
+   */
+  export type Renderer = 'webgl' | 'dom';
 
   /**
    * A type for the terminal theme.
