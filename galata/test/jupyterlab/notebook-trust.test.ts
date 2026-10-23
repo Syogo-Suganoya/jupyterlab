@@ -214,6 +214,47 @@ test.describe('Notebook Trust', () => {
     await expect(page.locator(TRUSTED_SELECTOR)).toHaveCount(1);
   });
 
+  test('Trusts the notebook without saving when save is false', async ({
+    page,
+    tmpPath
+  }) => {
+    const path = `${tmpPath}/${commandLinkFileName}`;
+    const notebookContent = JSON.stringify({
+      ...commandLinkNotebook,
+      metadata: {
+        ...commandLinkNotebook.metadata,
+        commandLinkTrustNonce: Date.now()
+      }
+    });
+    await page.contents.uploadContent(notebookContent, 'text', path);
+    expect(await page.notebook.openByPath(path)).toBe(true);
+    await expect(page.locator(NOT_TRUSTED_SELECTOR)).toHaveCount(1);
+
+    const lastModified = () =>
+      page.evaluate(
+        async path =>
+          (
+            await window.jupyterapp.serviceManager.contents.get(path, {
+              content: false
+            })
+          ).last_modified,
+        path
+      );
+    const before = await lastModified();
+
+    const trust = page.evaluate(() =>
+      window.jupyterapp.commands.execute('notebook:trust', { save: false })
+    );
+    await page
+      .locator('.jp-Dialog')
+      .getByRole('button', { name: 'Confirm Trusting this notebook' })
+      .click();
+    await trust;
+
+    await expect(page.locator(TRUSTED_SELECTOR)).toHaveCount(1);
+    expect(await lastModified()).toBe(before);
+  });
+
   test('Pager payload renders as cell output by default', async ({ page }) => {
     await page.notebook.createNew(fileName);
 
